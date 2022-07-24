@@ -1,10 +1,10 @@
 /* globals describe, afterAll, beforeAll, test, expect, jest, it */
-import { GenericContainer, Wait } from 'testcontainers';
+import { GenericContainer, StartedTestContainer, Wait } from 'testcontainers';
 import { ArangoDbDriver } from '../src/ArangoDbDriver';
 
 describe('ArangoDbDriver', () => {
-  let container;
-  let arangoDbDriver;
+  let container: StartedTestContainer;
+  let arangoDbDriver: ArangoDbDriver;
 
   jest.setTimeout(60 * 2 * 1000);
 
@@ -24,10 +24,10 @@ describe('ArangoDbDriver', () => {
     .start();
 
   const createDriver = (c) => {
-    const port = c && c.getMappedPort(9200) || 9200;
+    const port = c && c.getMappedPort(8529) || 8529;
 
     return new ArangoDbDriver({
-      url: `https://localhost:${port}`,
+      url: `http://localhost:${port}`,
       databaseName: 'dev',
       auth: {
         username: 'dev',
@@ -39,7 +39,7 @@ describe('ArangoDbDriver', () => {
   beforeAll(async () => {
     container = await startContainer();
     arangoDbDriver = createDriver(container);
-    arangoDbDriver.setLogger((msg, event) => console.log(`${msg}: ${JSON.stringify(event)}`));
+    // arangoDbDriver.setLogger((msg, event) => console.log(`${msg}: ${JSON.stringify(event)}`));
   });
 
   it('testConnection', async () => {
