@@ -2,7 +2,7 @@
   "name": "arangodb-cubejs-driver",
   "description": "Cube.js arangodb driver",
   "author": "pnthanh",
-  "version": "0.0.3",
+  "version": "0.0.1",
   "repository": {
     "type": "git",
     "url": "https://github.com/panoti/cubejs-arangodb-driver.git"
