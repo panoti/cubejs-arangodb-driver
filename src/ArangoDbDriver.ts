@@ -169,6 +169,11 @@ export default class ArangoDbDriver implements DriverInterface {
     return Date.now();
   }
 
+  // TODO: add to interface too
+  public quoteIdentifier(str: string) {
+    return str;
+  }
+
   private async aggrAttrs(collectionName: string) {
     const cursor = await this.client.query(`
 FOR i IN [1]
