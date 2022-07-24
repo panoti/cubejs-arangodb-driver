@@ -41,9 +41,9 @@ describe('ArangoDbDriver', () => {
     // arangoDbDriver = createDriver(container);
     arangoDbDriver = new ArangoDbDriver({
       url: `http://localhost:8529`,
-      databaseName: 'dev',
+      databaseName: '_system',
       auth: {
-        username: 'dev',
+        username: 'root',
         password: 'dev',
       },
     });
