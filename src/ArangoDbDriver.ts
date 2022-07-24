@@ -35,6 +35,10 @@ export default class ArangoDbDriver implements DriverInterface {
     ];
   }
 
+  public static dialectClass() {
+    return ArangoDbDriver;
+  }
+
   private config: Config;
 
   private client: Database;
@@ -170,8 +174,8 @@ export default class ArangoDbDriver implements DriverInterface {
   }
 
   // TODO: add to interface too
-  public quoteIdentifier(str: string) {
-    return str;
+  public quoteIdentifier(identifier: string) {
+    return identifier;
   }
 
   private async aggrAttrs(collectionName: string) {
