@@ -17,7 +17,8 @@
     "build": "tsc",
     "lint": "eslint src/* test/* --ext .ts,.js",
     "lint:fix": "eslint --fix src/* test/* --ext .ts,.js",
-    "integration": "jest --ci ./test/*.integration.js"
+    "test": "jest",
+    "test:integration": "jest --config ./test/jest-intergration.json"
   },
   "files": [
     "dist"
@@ -48,13 +49,15 @@
       "json",
       "ts"
     ],
-    "testEnvironment": "node",
-    "testMatch": [
-      "**/__tests__/**/*.ts",
-      "**/?(*.)+(spec|test|integration).ts"
-    ],
+    "rootDir": "src",
+    "testRegex": ".*\\.spec\\.ts$",
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
-    }
+    },
+    "collectCoverageFrom": [
+      "**/*.(t|j)s"
+    ],
+    "coverageDirectory": "../coverage",
+    "testEnvironment": "node"
   }
 }
