@@ -26,6 +26,7 @@ jobs:
 
       - name: Build package
         run: npm ci
+      - run: npm run build
 
       - name: Publish package
         run: npm publish
