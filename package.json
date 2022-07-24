@@ -1,5 +1,5 @@
 {
-  "name": "arango-cubejs-driver",
+  "name": "arangodbx-cubejs-driver",
   "description": "Cube.js arangodb driver",
   "author": "pnthanh",
   "version": "0.0.2",

@@ -25,5 +25,5 @@ module.exports = {
   materialize: '@cubejs-backend/materialize-driver',
   // List for JDBC drivers
   'databricks-jdbc': '@cubejs-backend/databricks-jdbc-driver',
-  'arango': 'arango-cubejs-driver'
+  'arango': 'arangodbx-cubejs-driver'
 };
