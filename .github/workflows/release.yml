@@ -11,16 +11,6 @@ env:
   NODE_VERSION: "14.x"
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-      - run: npm ci
-      - run: npm run test:integration
-
   publish-npm:
     needs: build
     runs-on: ubuntu-latest
