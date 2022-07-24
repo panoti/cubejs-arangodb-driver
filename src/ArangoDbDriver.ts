@@ -21,7 +21,7 @@ const sortByKeys = (unordered) => {
   return ordered;
 };
 
-export class ArangoDbDriver implements DriverInterface {
+export default class ArangoDbDriver implements DriverInterface {
   /**
    * Returns default concurrency value.
    */
