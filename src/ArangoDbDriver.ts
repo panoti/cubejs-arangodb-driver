@@ -1,6 +1,7 @@
 import { DownloadQueryResultsOptions, DownloadQueryResultsResult, DownloadTableCSVData, DownloadTableData, DownloadTableMemoryData, DriverInterface, ExternalDriverCompatibilities, IndexesSQL, QueryOptions, StreamOptions, StreamTableData, TableColumn, TableStructure, UnloadOptions } from '@cubejs-backend/query-orchestrator';
 import { CollectionType, Database } from 'arangojs';
 import { Config } from 'arangojs/connection';
+import { ArangoDbQuery } from './ArangoDbQuery';
 
 export declare type TableMap = Record<string, TableColumn[]>;
 export declare type SchemaStructure = Record<string, TableMap>;
@@ -36,7 +37,7 @@ export default class ArangoDbDriver implements DriverInterface {
   }
 
   public static dialectClass() {
-    return ArangoDbDriver;
+    return ArangoDbQuery;
   }
 
   private config: Config;
