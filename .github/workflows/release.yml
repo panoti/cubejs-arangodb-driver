@@ -29,6 +29,8 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npm unpublish arango-cubejs-driver@0.0.1
+        env:
+          NODE_AUTH_TOKEN: ${{secrets.npm_token}}
       - run: npm publish
         env:
           NODE_AUTH_TOKEN: ${{secrets.npm_token}}
