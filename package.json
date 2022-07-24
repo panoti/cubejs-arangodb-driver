@@ -1,0 +1,60 @@
+{
+  "name": "cubejs-arangodb-driver",
+  "description": "Cube.js arangodb driver",
+  "author": "pnthanh",
+  "version": "0.0.1",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/panoti/cubejs-arangodb-driver.git"
+  },
+  "engines": {
+    "node": "^12.0.0 || ^14.0.0 || >=16.0.0"
+  },
+  "main": "dist/ArangoDbDriver.js",
+  "typings": "dist/ArangoDbDriver.d.ts",
+  "scripts": {
+    "prebuild": "rimraf dist",
+    "build": "tsc",
+    "lint": "eslint src/* test/* --ext .ts,.js",
+    "lint:fix": "eslint --fix src/* test/* --ext .ts,.js",
+    "integration": "jest --ci ./test/*.integration.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@cubejs-backend/query-orchestrator": "^0.30.34",
+    "arangojs": "^7.8.0"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@cubejs-backend/linter": "^0.30.0",
+    "@types/jest": "^26.0.20",
+    "jest": "^26.6.3",
+    "rimraf": "^3.0.2",
+    "testcontainers": "^7.5.0",
+    "ts-jest": "^28.0.7",
+    "typescript": "^4.7.4"
+  },
+  "eslintConfig": {
+    "extends": "./node_modules/@cubejs-backend/linter/index.js"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "jest": {
+    "moduleFileExtensions": [
+      "js",
+      "json",
+      "ts"
+    ],
+    "testEnvironment": "node",
+    "testMatch": [
+      "**/__tests__/**/*.ts",
+      "**/?(*.)+(spec|test|integration).ts"
+    ],
+    "transform": {
+      "^.+\\.(t|j)s$": "ts-jest"
+    }
+  }
+}

@@ -1,0 +1,24 @@
+version: '3'
+services:
+  arangodb:
+    image: arangodb/arangodb:3.9.1
+    #command: ["arangod", "--database.auto-upgrade", "true"]
+    ports:
+      - target: 8529
+        published: 8529
+        protocol: tcp
+        mode: host
+    environment:
+      ARANGO_ROOT_PASSWORD: dev
+    volumes:
+      - arangodb_data:/var/lib/arangodb3
+    healthcheck:
+      test: curl -k --silent --fail http://localhost:8529/_api/version || exit 1
+      timeout: 5s
+      interval: 2s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  arangodb_data:
+    driver: local
