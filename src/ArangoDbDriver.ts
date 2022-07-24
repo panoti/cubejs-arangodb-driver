@@ -54,6 +54,7 @@ export default class ArangoDbDriver implements DriverInterface {
 
     this.client = new Database({
       url: this.config.url,
+      databaseName: this.config.databaseName,
       auth: this.config.auth,
       // ssl: this.config.ssl
     });
