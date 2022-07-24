@@ -5,7 +5,6 @@ import { Config } from 'arangojs/connection';
 export declare type TableMap = Record<string, TableColumn[]>;
 export declare type SchemaStructure = Record<string, TableMap>;
 
-
 const DbTypeToGenericType = {
   number: 'double',
   string: 'text',
