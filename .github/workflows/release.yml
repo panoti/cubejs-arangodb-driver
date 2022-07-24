@@ -19,7 +19,7 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
       - run: npm ci
-      - run: npm run integration
+      - run: npm run test:integration
 
   publish-npm:
     needs: build
