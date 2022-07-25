@@ -2,7 +2,8 @@
     "exclude": [
       "node_modules",
       "dist",
-      "test"
+      "test",
+      "**/*spec.ts"
     ],
     "files": [],
     "compilerOptions": {

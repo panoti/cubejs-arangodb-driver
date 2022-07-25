@@ -1,7 +1,8 @@
 import { DownloadQueryResultsOptions, DownloadQueryResultsResult, DownloadTableCSVData, DownloadTableData, DownloadTableMemoryData, DriverInterface, ExternalDriverCompatibilities, IndexesSQL, QueryOptions, StreamOptions, StreamTableData, TableColumn, TableStructure, UnloadOptions } from '@cubejs-backend/query-orchestrator';
 import { CollectionType, Database } from 'arangojs';
 import { Config } from 'arangojs/connection';
-import { ArangoDbQuery } from './ArangoDbQuery';
+import { ArangoDbQuery } from './arangodb-query';
+import { sql2aql } from './sql-utils';
 
 export declare type TableMap = Record<string, TableColumn[]>;
 export declare type SchemaStructure = Record<string, TableMap>;
@@ -119,7 +120,8 @@ export default class ArangoDbDriver implements DriverInterface {
 
   public async query<R = unknown>(query: string, params: unknown[], options?: QueryOptions): Promise<R[]> {
     console.log(query, params, options);
-    const cursor = await this.client.query(query);
+    const aqlQuery = sql2aql(query);
+    const cursor = await this.client.query(aqlQuery);
     const result = cursor.all();
 
     await cursor.kill();
@@ -176,7 +178,7 @@ export default class ArangoDbDriver implements DriverInterface {
 
   // TODO: add to interface too
   public quoteIdentifier(identifier: string) {
-    return identifier;
+    return `"${identifier}"`;
   }
 
   private async aggrAttrs(collectionName: string) {

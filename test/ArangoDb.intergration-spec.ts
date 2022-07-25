@@ -1,6 +1,6 @@
 /* globals describe, afterAll, beforeAll, test, expect, jest, it */
 // import { GenericContainer, StartedTestContainer, Wait } from 'testcontainers';
-import ArangoDbDriver from '../dist/ArangoDbDriver';
+import ArangoDbDriver from '../dist/arangodb-driver';
 
 describe('ArangoDbDriver', () => {
   // let container: StartedTestContainer;
