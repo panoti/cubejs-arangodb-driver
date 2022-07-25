@@ -1,6 +1,14 @@
 import { Expr, From, LimitStatement, OrderByStatement, parse, SelectedColumn } from 'pgsql-ast-parser';
 
-const indentMap: { [len in number]: string } = {};
+const functionMap: Record<string, string> = {
+  count: 'COUNT',
+  min: 'MIN',
+  max: 'MAX',
+  sum: 'SUM',
+  avg: 'AVG'
+};
+
+const indentMap: Record<number, string> = {};
 
 interface AqlContext {
   docRef: string;
@@ -77,6 +85,27 @@ export function mapGroupByStatement(groupByAsts: Expr[], columns: SelectedColumn
   return `COLLECT ${collectArr.join(',')}`;
 }
 
+export function mapAggrStatement(columns: SelectedColumn[], ctx: AqlContext) {
+  let aggArr: string[] = [];
+
+  for (const col of columns) {
+    if (col.expr.type === 'call') {
+      let aqlFunc = functionMap[col.expr.function.name];
+      if (aqlFunc) {
+        let aggrEl = `${col.alias.name} = ${aqlFunc}(${col.expr.args.map((expr) => `${ctx.docRef}.${expr['name']}`).join(',')})`;
+        ctx.collectMap[col.alias.name] = aggrEl;
+        aggArr.push(aggrEl);
+      }
+    }
+  }
+
+  if (aggArr.length) {
+    return `AGGREGATE ${aggArr.join(',')}`
+  }
+
+  return undefined;
+}
+
 export function mapOrderByStatement(orderByAsts: OrderByStatement[], columns: SelectedColumn[], ctx: AqlContext) {
   const orderByArr: string[] = [];
 
@@ -122,10 +151,8 @@ export function mapProjectStatement(columns: SelectedColumn[], ctx: AqlContext) 
   const returnArr: string[] = [];
 
   for (const col of columns) {
-    if (ctx.collectMap) {
-      if (ctx.collectMap[col.alias.name]) {
-        returnArr.push(`${col.alias.name}`);
-      }
+    if (ctx.collectMap && ctx.collectMap[col.alias.name]) {
+      returnArr.push(`${col.alias.name}`);
     } else {
       switch (col.expr.type) {
         case 'ref':
@@ -160,6 +187,12 @@ export function sql2aql(sql: string): string {
 
     if (firstAst.groupBy) {
       aqlQuery += `${indent(1)}${mapGroupByStatement(firstAst.groupBy, firstAst.columns, ctx)}\n`;
+
+      let aggrStr = mapAggrStatement(firstAst.columns, ctx);
+
+      if (aggrStr) {
+        aqlQuery += `${indent(1)}${aggrStr}\n`;
+      }
     }
 
     if (firstAst.orderBy) {
