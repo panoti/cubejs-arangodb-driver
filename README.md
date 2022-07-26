@@ -18,6 +18,31 @@ In this repository, we have:
 * Pure Javascript ArangoDB driver.
 * Docker image `ghcr.io/panoti/cube:main`. This is a custom image of `cube:latest` with `arangodb-cubejs-driver` 
 
+### Usage
+
+#### For Docker
+
+Create custom image with `Dockerfile`
+
+```Dockerfile
+FROM cubejs/cube:latest
+
+RUN npm i arangodb-cubejs-driver@0.0.5
+```
+
+Package `arangodb-cubejs-driver` will install into `/cube/cnf/node_modules` directory and CubeJS load driver automatically.
+
+**Note**: This driver do not support by front-end so we can not use connection wizard to config arango data source. Please use env instead.
+
+```yaml
+environment:
+  - CUBEJS_DB_URL=http://localhost:8529
+  - CUBEJS_DB_NAME=test
+  - CUBEJS_DB_USER=test
+  - CUBEJS_DB_PASS=test
+  - CUBEJS_DB_TYPE=arangodb
+```
+
 [Learn more](https://github.com/cube-js/cube.js#getting-started)
 
 ### License
