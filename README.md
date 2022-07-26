@@ -16,7 +16,7 @@ npm i --save arangodb-cubejs-driver
 
 ### What's in this repository
 
-* ArangoDB driver in Typescript :heart:
+* ArangoDB driver in Typescript :heart:. Postgresql parser with [pgsql-ast-parser](https://github.com/oguimbal/pgsql-ast-parser).
 * Docker image `ghcr.io/panoti/cube:main`. This is a custom image of `cube:latest` with `arangodb-cubejs-driver` 
 
 ### Usage
