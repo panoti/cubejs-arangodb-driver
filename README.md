@@ -3,7 +3,7 @@
 [Website](https://cube.dev) • [Docs](https://cube.dev/docs) • [Blog](https://cube.dev/blog) • [Slack](https://slack.cube.dev) • [Discourse](https://forum.cube.dev/) • [Twitter](https://twitter.com/thecubejs)
 
 [![npm version](https://badge.fury.io/js/arangodb-cubejs-driver.svg)](https://badge.fury.io/js/arangodb-cubejs-driver)
-[![Release CI](https://github.com/panoti/cubejs-arangodb-driver/actions/workflows/release.yml/badge.svg)](https://github.com/panoti/cubejs-arangodb-driver/actions/workflows/release.yml)
+[![Test CI](https://github.com/panoti/cubejs-arangodb-driver/actions/workflows/test.yml/badge.svg)](https://github.com/panoti/cubejs-arangodb-driver/actions/workflows/test.yml)
 
 # Cube.js Arango Database Driver
 
