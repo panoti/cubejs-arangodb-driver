@@ -7,7 +7,8 @@
 
 # Cube.js Arango Database Driver
 
-**Project is WIP. Some Postgresql do not transpile to AQL.**
+**Project is WIP. We've already used in our production but some Postgresql do not transpile to AQL**
+because we don't use all of SQL statements in our product now.
 
 ```
 npm i --save arangodb-cubejs-driver
