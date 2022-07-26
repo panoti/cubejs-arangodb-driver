@@ -7,7 +7,7 @@
 
 # Cube.js Arango Database Driver
 
-**Project is WIP**. Some Postgresql do not transpile to AQL.
+**Project is WIP. Some Postgresql do not transpile to AQL.**
 
 In this repository, we have:
 
