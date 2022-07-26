@@ -5,11 +5,14 @@
 [![npm version](https://badge.fury.io/js/arangodb-cubejs-driver.svg)](https://badge.fury.io/js/arangodb-cubejs-driver)
 [![Release CI](https://github.com/panoti/cubejs-arangodb-driver/actions/workflows/release.yml/badge.svg)](https://github.com/panoti/cubejs-arangodb-driver/actions/workflows/release.yml)
 
-**Project is WIP**. Some Postgresql do not transpile to AQL.
-
 # Cube.js Arango Database Driver
 
-Pure Javascript ArangoDB driver.
+**Project is WIP**. Some Postgresql do not transpile to AQL.
+
+In this repository, we have:
+
+* Pure Javascript ArangoDB driver.
+* Docker image `ghcr.io/panoti/cube:main`. This is a custom build of `cubejs` with `arangodb-cubejs-driver` 
 
 [Learn more](https://github.com/cube-js/cube.js#getting-started)
 
