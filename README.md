@@ -18,4 +18,4 @@ In this repository, we have:
 
 ### License
 
-Cube.js Angular driver is [Apache 2.0 licensed](./LICENSE).
+Cube.js Arango driver is [Apache 2.0 licensed](./LICENSE).
