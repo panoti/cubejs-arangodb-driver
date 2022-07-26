@@ -33,7 +33,7 @@ RUN npm i arangodb-cubejs-driver@0.0.5
 
 Package `arangodb-cubejs-driver` will install into `/cube/cnf/node_modules` directory and CubeJS load driver automatically.
 
-**Note**: This driver do not support by front-end so we can not use connection wizard to config arango data source. Please use env instead.
+**Note**: This driver isn't supported by front-end so we can not use connection wizard to config arango data source. Please use env instead.
 
 ```yaml
 environment:
