@@ -9,6 +9,10 @@
 
 **Project is WIP. Some Postgresql do not transpile to AQL.**
 
+```
+npm i --save arangodb-cubejs-driver
+```
+
 In this repository, we have:
 
 * Pure Javascript ArangoDB driver.
