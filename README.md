@@ -28,7 +28,7 @@ Create custom image with `Dockerfile`
 ```Dockerfile
 FROM cubejs/cube:latest
 
-RUN npm i arangodb-cubejs-driver@0.0.5
+RUN npm i arangodb-cubejs-driver
 ```
 
 Package `arangodb-cubejs-driver` will install into `/cube/cnf/node_modules` directory and CubeJS load driver automatically.
