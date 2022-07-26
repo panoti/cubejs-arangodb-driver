@@ -12,7 +12,7 @@
 In this repository, we have:
 
 * Pure Javascript ArangoDB driver.
-* Docker image `ghcr.io/panoti/cube:main`. This is a custom build of `cubejs` with `arangodb-cubejs-driver` 
+* Docker image `ghcr.io/panoti/cube:main`. This is a custom image of `cube:latest` with `arangodb-cubejs-driver` 
 
 [Learn more](https://github.com/cube-js/cube.js#getting-started)
 
