@@ -48,4 +48,4 @@ environment:
 
 ### License
 
-Cube.js Arango driver is [Apache 2.0 licensed](./LICENSE).
+Cube.js Arango driver is [MIT licensed](./LICENSE).
