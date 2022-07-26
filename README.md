@@ -14,9 +14,9 @@ because we don't use all of SQL statements in our product now.
 npm i --save arangodb-cubejs-driver
 ```
 
-In this repository, we have:
+### What's in this repository
 
-* Pure Javascript ArangoDB driver.
+* ArangoDB driver in Typescript :heart:
 * Docker image `ghcr.io/panoti/cube:main`. This is a custom image of `cube:latest` with `arangodb-cubejs-driver` 
 
 ### Usage
