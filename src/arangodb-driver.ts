@@ -120,7 +120,7 @@ export class ArangoDbDriver implements DriverInterface {
 
   public async query<R = unknown>(query: string, params: unknown[], options?: QueryOptions): Promise<R[]> {
     console.log(query, params, options);
-    const aqlQuery = sql2aql(query);
+    const aqlQuery = sql2aql(query, params);
     const cursor = await this.client.query(aqlQuery);
     const result = cursor.all();
 
