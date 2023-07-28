@@ -2,6 +2,7 @@ import { Expr, From, LimitStatement, OrderByStatement, parse, SelectedColumn } f
 
 const functionMap: Record<string, string> = {
   count: 'COUNT',
+  countDistinct: 'COUNT_DISTINCT',
   min: 'MIN',
   max: 'MAX',
   sum: 'SUM',
@@ -39,6 +40,10 @@ export function mapFromStatment(fromAst: From[], ctx: AqlContext) {
 
 function isNumeric(val: any): boolean {
   return !(val instanceof Array) && (val - parseFloat(val) + 1) >= 0;
+}
+
+function capitalizeFirstLetter(string: string) {
+  return string ? string[0].toUpperCase() + string.slice(1) : "";
 }
 
 function mapOpStat(expr: Expr, ctx: AqlContext, params: any, deep = 0) {
@@ -140,11 +145,13 @@ export function mapAggrStatement(columns: SelectedColumn[], ctx: AqlContext) {
 
   for (const col of columns) {
     if (col.expr.type === 'call') {
-      let aqlFunc = functionMap[col.expr.function.name];
+      let aqlFunc = functionMap[col.expr.function.name + capitalizeFirstLetter(col.expr.distinct)];
       if (aqlFunc) {
         let aggrEl = `${col.alias.name} = ${aqlFunc}(${col.expr.args.map((expr) => `${ctx.docRef}.${expr['name']}`).join(',')})`;
         ctx.collectMap[col.alias.name] = aggrEl;
         aggArr.push(aggrEl);
+      } else {
+        throw Error(`AQL mapping is missing for SQL function ${col.expr.function.name}`);
       }
     }
   }
