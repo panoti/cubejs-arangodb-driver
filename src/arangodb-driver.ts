@@ -122,7 +122,7 @@ export class ArangoDbDriver implements DriverInterface {
     console.log(query, params, options);
     const aqlQuery = sql2aql(query);
     const cursor = await this.client.query(aqlQuery);
-    const result = cursor.all();
+    const result = await cursor.all();
 
     await cursor.kill();
 
@@ -160,7 +160,25 @@ export class ArangoDbDriver implements DriverInterface {
 
   public downloadQueryResults: (query: string, values: unknown[], options: DownloadQueryResultsOptions) => Promise<DownloadQueryResultsResult> =
     async (query: string, values: unknown[], options: DownloadQueryResultsOptions) => {
-      throw new Error('Method not implemented.');
+      const rows = await this.query(query, values);
+
+      var column_types = [];
+      Object.entries(rows[0]).forEach(
+          function(record) {
+              const [column, value] = record;
+              const type = typeof value;
+              const generic_type = DbTypeToGenericType[type];
+              if (!generic_type) {
+                  throw new Error(`Unable to translate type for column "${column}" with type: ${type}`);
+              }
+              column_types.push({name: column, type: generic_type});
+          }
+      );
+      
+      return {
+          rows: rows,
+          types: column_types
+      };
     };
 
   public downloadTable: (table: string, options: ExternalDriverCompatibilities) => Promise<DownloadTableMemoryData | DownloadTableCSVData> =
