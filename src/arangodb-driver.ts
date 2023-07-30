@@ -1,4 +1,4 @@
-import { BaseDriver, QueryOptions, TableColumn, TableStructure } from '@cubejs-backend/base-driver';
+import { BaseDriver, DownloadQueryResultsOptions, DownloadQueryResultsResult, QueryOptions, Row, TableColumn, TableStructure } from '@cubejs-backend/base-driver';
 import { CollectionType, Database } from 'arangojs';
 import { Config } from 'arangojs/connection';
 import { sql2aql } from './sql-utils';
@@ -87,12 +87,34 @@ export class ArangoDbDriver extends BaseDriver {
     // console.log(_query, _values, _options);
     const aqlQuery = sql2aql(_query);
     const cursor = await this.client.query(aqlQuery);
-    const result = cursor.all();
+    const result = await cursor.all();
 
     await cursor.kill();
 
     return result;
   }
+
+  public async downloadQueryResults(query: string, values: unknown[], _options: DownloadQueryResultsOptions): Promise<DownloadQueryResultsResult> {
+    const rows = await this.query<Row>(query, values);
+    const columnTypes: TableStructure = [];
+
+    Object.entries(rows[0]).forEach((cols) => {
+      const [column, value] = cols;
+      const type = typeof value; // TODO: check float and integer
+      const genericType = ArangoToGenericType[type];
+
+      if (!genericType) {
+        throw new Error(`Unable to translate type for column "${column}" with type: ${type}`);
+      }
+
+      columnTypes.push({ name: column, type: genericType });
+    });
+
+    return {
+      rows,
+      types: columnTypes
+    };
+  };
 
   public async release() {
     await this.client.close();
@@ -125,20 +147,20 @@ export class ArangoDbDriver extends BaseDriver {
   }
 
   public async tableColumnTypes(table: string): Promise<TableStructure> {
-      const columns: TableStructure = [];
-      // TODO: can optimize by schema registry or swagger json schema
-      const attrMap = await this.aggrAttrs(table);
-      const attrNames = Object.keys(attrMap);
+    const columns: TableStructure = [];
+    // TODO: can optimize by schema registry or swagger json schema
+    const attrMap = await this.aggrAttrs(table);
+    const attrNames = Object.keys(attrMap);
 
-      for (const attrName of attrNames) {
-        const attrType = attrMap[attrName];
+    for (const attrName of attrNames) {
+      const attrType = attrMap[attrName];
 
-        if (this.toGenericType(attrType)) {
-          columns.push({ name: attrName, type: attrType, attributes: [] });
-        }
+      if (this.toGenericType(attrType)) {
+        columns.push({ name: attrName, type: attrType, attributes: [] });
       }
+    }
 
-      return columns.sort();
+    return columns.sort();
   }
 
   // public stream?: (table: string, values: unknown[], options: StreamOptions) => Promise<StreamTableData>;
