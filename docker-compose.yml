@@ -1,4 +1,5 @@
 version: '3'
+
 services:
   arangodb:
     image: arangodb/arangodb:3.9.1
@@ -18,8 +19,6 @@ services:
       interval: 2s
       retries: 3
       start_period: 10s
-
-  
 
 volumes:
   arangodb_data:
