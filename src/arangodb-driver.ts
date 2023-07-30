@@ -1,5 +1,6 @@
 import { BaseDriver, DownloadQueryResultsOptions, DownloadQueryResultsResult, QueryOptions, Row, TableColumn, TableStructure } from '@cubejs-backend/base-driver';
-import { CollectionType, Database } from 'arangojs';
+import { Database } from 'arangojs';
+import { CollectionType } from 'arangojs/collection';
 import { Config } from 'arangojs/connection';
 import { sql2aql } from './sql-utils';
 
