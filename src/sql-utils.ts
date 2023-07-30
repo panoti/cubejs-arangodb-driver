@@ -2,10 +2,17 @@ import { Expr, From, LimitStatement, OrderByStatement, parse, SelectedColumn } f
 
 const functionMap: Record<string, string> = {
   count: 'COUNT',
+  countDistinct: 'COUNT_DISTINCT',
   min: 'MIN',
   max: 'MAX',
   sum: 'SUM',
   avg: 'AVG'
+};
+
+const operatorMap = {
+    '=': '==',
+    'ILIKE': 'LIKE',
+    'NOT ILIKE': 'NOT LIKE'
 };
 
 const indentMap: Record<number, string> = {};
@@ -31,57 +38,105 @@ export function mapFromStatment(fromAst: From[], ctx: AqlContext) {
   return `FOR ${ctx.docRef} IN ${fromAst[0]['name']['name']}`;
 }
 
-function mapOpStat(expr: Expr, deep = 0) {
+function isNumeric(val: any): boolean {
+  return !(val instanceof Array) && (val - parseFloat(val) + 1) >= 0;
+}
+
+function capitalizeFirstLetter(string: string) {
+  return string ? string[0].toUpperCase() + string.slice(1) : "";
+}
+
+function mapOpStat(expr: Expr, ctx: AqlContext, params: any, deep = 0) {
   switch (expr.type) {
-    case 'ref': {
-
-    }
-
-    case 'boolean':
-    case 'integer':
-    case 'string':
-      return expr['value'];
-
-    case 'binary': {
-      const op = expr['op'];
-      const lhs = mapOpStat(expr['left']);
-      const rhs = mapOpStat(expr['right']);
-      return deep > 0 ? `(${lhs} ${op} ${rhs})` : `${lhs} ${op} ${rhs}`;
-    }
-
-    default:
-      throw Error(`Unsupported where expr type ${expr.type}!`);
+      case 'ref':
+          return `${ctx.docRef}.${expr.name}`
+      case 'parameter':
+          if (expr.name[0] == "$") {
+              // SQL positional parameter, e.g. {"type":"parameter","name":"$1"}
+              // Remove leading $, convert to numeric (+), adjust to zero-based index (-1).
+              const position = +expr.name.substring(1) - 1;
+              const value = params[position];
+              if ( isNumeric(value) ) return +value;
+              return value;
+          } else {
+              throw Error(`Unsupported parameter ${JSON.stringify(params)}`);
+          }
+      case 'boolean':
+      case 'integer':
+      case 'string':
+          return expr.value;
+      case 'unary':
+          // Extract operand value by recursive call to current function.
+          const operand = mapOpStat(expr.operand, ctx, params);
+          switch(expr.op) {
+              case 'IS NULL':
+                  return `${operand} == null`;
+              case 'IS NOT NULL':
+                  return `${operand} != null`;
+              default:
+                  throw Error(`Unsupported operator ${expr.op}!`);
+          }
+      case 'binary': {
+          // Extract operator value with substitution.
+          const mappedOperator = operatorMap[expr.op];
+          const op = mappedOperator ? mappedOperator : expr.op;
+          // Extract operands' values by recursive call to current function.
+          const lhs = mapOpStat(expr.left, ctx, params);
+          const rhs = mapOpStat(expr.right, ctx, params);
+          if (op == '||') {
+              // lhs or rhs is a wildcard literal ('%') to append for searching with LIKE.
+              return `${lhs}${rhs}`;
+          }
+          if (op == 'LIKE' || op == 'NOT LIKE') {
+              // Return quoted rhs.
+              return `${lhs} ${op} "${rhs}"`;
+          }
+          return deep > 0 ? `(${lhs} ${op} ${rhs})` : `${lhs} ${op} ${rhs}`;
+      }
+      default:
+          throw Error(`Unsupported where expr type ${expr.type}!`);
   }
 }
 
-export function mapWhereStatement(whereAst: Expr) {
-  let filterStr = mapOpStat(whereAst);
-
+export function mapWhereStatement(whereAst: Expr, ctx: AqlContext, params: any) {
+  let filterStr = mapOpStat(whereAst, ctx, params);
   if (filterStr) {
-    return `FILTER ${filterStr}`;
+      return `FILTER ${filterStr}`;
   }
+  throw Error(`Unsupported filter string ${JSON.stringify(whereAst)}`);
+}
 
-  return undefined;
+function hasCalculatedColumns(columns: SelectedColumn[]) {
+  for (const col of columns) {
+      if (col.expr.type == "call") return true;
+  }
+  return false;
 }
 
 export function mapGroupByStatement(groupByAsts: Expr[], columns: SelectedColumn[], ctx: AqlContext) {
   const collectArr: string[] = [];
   ctx.collectMap = {};
 
-  for (const groupByAst of groupByAsts) {
-    switch (groupByAst.type) {
-      case 'integer':
-        const groupCol = columns[groupByAst.value - 1];
-        const collectEl = `${groupCol.alias.name} = ${ctx.docRef}.${groupCol.expr['name']}`;
-        ctx.collectMap[groupCol.alias.name] = collectEl;
-        collectArr.push(collectEl);
-        break;
+  if (groupByAsts) {
+    // Transpile GROUP BY SQL columns to COLLECT and RETURN AQL columns. RETURN columns are passed via collectMap.
+    for (const groupByAst of groupByAsts) {
+      switch (groupByAst.type) {
+        case 'integer':
+          const groupCol = columns[groupByAst.value - 1];
+          const collectEl = `${groupCol.alias.name} = ${ctx.docRef}.${groupCol.expr['name']}`;
+          ctx.collectMap[groupCol.alias.name] = collectEl;
+          collectArr.push(collectEl);
+          break;
 
-      default:
-        throw Error(`Unsupported groupBy expr type ${groupByAst.type}!`);
+        default:
+          throw Error(`Unsupported groupBy expr type ${groupByAst.type}!`);
+      }
     }
   }
 
+  // Return one of the following:
+  // - COLLECT followed by columns if there are GROUP BY in SQL.
+  // - COLLECT statement if there are only calculated columns for further representation by AGGREGATE AQL.
   return `COLLECT ${collectArr.join(',')}`;
 }
 
@@ -90,17 +145,19 @@ export function mapAggrStatement(columns: SelectedColumn[], ctx: AqlContext) {
 
   for (const col of columns) {
     if (col.expr.type === 'call') {
-      let aqlFunc = functionMap[col.expr.function.name];
+      let aqlFunc = functionMap[col.expr.function.name + capitalizeFirstLetter(col.expr.distinct)];
       if (aqlFunc) {
         let aggrEl = `${col.alias.name} = ${aqlFunc}(${col.expr.args.map((expr) => `${ctx.docRef}.${expr['name']}`).join(',')})`;
         ctx.collectMap[col.alias.name] = aggrEl;
         aggArr.push(aggrEl);
+      } else {
+        throw Error(`AQL mapping is missing for SQL function ${col.expr.function.name}`);
       }
     }
   }
 
   if (aggArr.length) {
-    return `AGGREGATE ${aggArr.join(',')}`
+    return `AGGREGATE ${aggArr.join(',')}`;
   }
 
   return undefined;
@@ -158,7 +215,9 @@ export function mapProjectStatement(columns: SelectedColumn[], ctx: AqlContext) 
         case 'ref':
           returnArr.push(`${col.alias.name}:${ctx.docRef}.${col.expr.name}`);
           break;
-
+        case 'call':
+          // Handled in COLLECT and AGGREGATE AQL transpilers of mapGroupByStatement() and mapAggrStatement().
+          break;
         default:
           throw Error(`Unsupported projection expr type ${col.expr.type}!`);
       }
@@ -168,7 +227,7 @@ export function mapProjectStatement(columns: SelectedColumn[], ctx: AqlContext) 
   return `RETURN {${returnArr.join(',')}}`;
 }
 
-export function sql2aql(sql: string): string {
+export function sql2aql(sql: string, params: any): string {
   const ast = parse(sql);
   let aqlQuery = '';
 
@@ -178,14 +237,14 @@ export function sql2aql(sql: string): string {
     aqlQuery = `${mapFromStatment(firstAst.from, ctx)}\n`;
 
     if (firstAst.where) {
-      let filterStr = mapWhereStatement(firstAst.where);
+      let filterStr = mapWhereStatement(firstAst.where, ctx, params);
 
       if (filterStr) {
         aqlQuery += `${indent(1)}${filterStr}\n`;
       }
     }
 
-    if (firstAst.groupBy) {
+    if (firstAst.groupBy || hasCalculatedColumns(firstAst.columns)) {
       aqlQuery += `${indent(1)}${mapGroupByStatement(firstAst.groupBy, firstAst.columns, ctx)}\n`;
 
       let aggrStr = mapAggrStatement(firstAst.columns, ctx);
