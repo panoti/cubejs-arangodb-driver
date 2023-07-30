@@ -1,20 +1,19 @@
-import { DownloadQueryResultsOptions, DownloadQueryResultsResult, DownloadTableCSVData, DownloadTableData, DownloadTableMemoryData, DriverInterface, ExternalDriverCompatibilities, IndexesSQL, QueryOptions, StreamOptions, StreamTableData, TableColumn, TableStructure, UnloadOptions } from '@cubejs-backend/query-orchestrator';
+import { BaseDriver, QueryOptions, TableColumn, TableStructure } from '@cubejs-backend/base-driver';
 import { CollectionType, Database } from 'arangojs';
 import { Config } from 'arangojs/connection';
-import { ArangoDbQuery } from './arangodb-query';
 import { sql2aql } from './sql-utils';
 
 export declare type TableMap = Record<string, TableColumn[]>;
 export declare type SchemaStructure = Record<string, TableMap>;
 
-const DbTypeToGenericType = {
+const ArangoToGenericType = {
   number: 'double',
   string: 'text',
   bool: 'boolean'
 };
 
-const sortByKeys = (unordered) => {
-  const ordered = {};
+const sortByKeys = (unordered: any) => {
+  const ordered: any = {};
 
   Object.keys(unordered).sort().forEach((key) => {
     ordered[key] = unordered[key];
@@ -23,9 +22,10 @@ const sortByKeys = (unordered) => {
   return ordered;
 };
 
-export class ArangoDbDriver implements DriverInterface {
+export class ArangoDbDriver extends BaseDriver {
   /**
    * Returns default concurrency value.
+   * @return {number}
    */
   public static getDefaultConcurrency(): number {
     return 2;
@@ -33,19 +33,27 @@ export class ArangoDbDriver implements DriverInterface {
 
   public static driverEnvVariables() {
     return [
-      'CUBEJS_DB_URL'
+      'CUBEJS_DB_URL',
     ];
-  }
-
-  public static dialectClass() {
-    return ArangoDbQuery;
   }
 
   private config: Config;
 
   private client: Database;
 
-  public constructor(config: Config = {}) {
+  public constructor(
+    config: Partial<Config> & {
+      /**
+         * Time to wait for a response from a connection after validation
+         * request before determining it as not valid. Default - 60000 ms.
+         */
+      testConnectionTimeout?: number,
+    } = {}
+  ) {
+    super({
+      testConnectionTimeout: config.testConnectionTimeout || 60000,
+    });
+
     const auth = {
       username: process.env.CUBEJS_DB_USER,
       password: process.env.CUBEJS_DB_PASS,
@@ -75,6 +83,17 @@ export class ArangoDbDriver implements DriverInterface {
     return await cursor.next();
   }
 
+  public async query<R = unknown>(_query: string, _values?: unknown[], _options?: QueryOptions): Promise<R[]> {
+    // console.log(_query, _values, _options);
+    const aqlQuery = sql2aql(_query);
+    const cursor = await this.client.query(aqlQuery);
+    const result = cursor.all();
+
+    await cursor.kill();
+
+    return result;
+  }
+
   public async release() {
     await this.client.close();
   }
@@ -94,43 +113,18 @@ export class ArangoDbDriver implements DriverInterface {
     for (const collection of collections) {
       const collectionMeta = await collection.get();
 
-      if (collectionMeta.type !== CollectionType.DOCUMENT_COLLECTION) continue;
-
-      schema[collection.name] = await this.tableColumnTypes(collection.name);
+      if (collectionMeta.type === CollectionType.DOCUMENT_COLLECTION) {
+        schema[collection.name] = await this.tableColumnTypes(collection.name);
+      }
     }
 
     schema = sortByKeys(schema);
     result[schemaName] = schema;
 
-    return sortByKeys(result);
-  }
-
-  public async createSchemaIfNotExists(schemaName: string): Promise<any> {
-    throw new Error('Method not implemented.');
-  }
-
-  public async uploadTableWithIndexes(table: string, columns: TableStructure, tableData: DownloadTableData, indexesSql: IndexesSQL, uniqueKeyColumns: string[], queryTracingObj: any): Promise<void> {
-    throw new Error('Method not implemented.');
-  }
-
-  public loadPreAggregationIntoTable: (preAggregationTableName: string, loadSql: string, params: any, options: any) => Promise<any> =
-    async (preAggregationTableName: string, loadSql: string, params: any, options: any) => {
-      throw new Error('Method not implemented.');
-    };
-
-  public async query<R = unknown>(query: string, params: unknown[], options?: QueryOptions): Promise<R[]> {
-    console.log(query, params, options);
-    const aqlQuery = sql2aql(query);
-    const cursor = await this.client.query(aqlQuery);
-    const result = cursor.all();
-
-    await cursor.kill();
-
     return result;
   }
 
-  public tableColumnTypes: (table: string) => Promise<TableStructure> =
-    async (table: string) => {
+  public async tableColumnTypes(table: string): Promise<TableStructure> {
       const columns: TableStructure = [];
       // TODO: can optimize by schema registry or swagger json schema
       const attrMap = await this.aggrAttrs(table);
@@ -145,43 +139,23 @@ export class ArangoDbDriver implements DriverInterface {
       }
 
       return columns.sort();
-    };
-
-  public getTablesQuery: (schemaName: string) => Promise<{ table_name?: string; TABLE_NAME?: string; }[]> =
-    async (schemaName: string) => {
-      const collections = await this.client.collections();
-      return collections.map((col) => ({ table_name: col.name }));
-    };
-
-  public dropTable: (tableName: string, options?: QueryOptions) => Promise<unknown> =
-    (tableName: string, options?: QueryOptions) => {
-      throw new Error('Method not implemented.');
-    };
-
-  public downloadQueryResults: (query: string, values: unknown[], options: DownloadQueryResultsOptions) => Promise<DownloadQueryResultsResult> =
-    async (query: string, values: unknown[], options: DownloadQueryResultsOptions) => {
-      throw new Error('Method not implemented.');
-    };
-
-  public downloadTable: (table: string, options: ExternalDriverCompatibilities) => Promise<DownloadTableMemoryData | DownloadTableCSVData> =
-    async (table: string, options: ExternalDriverCompatibilities) => {
-      throw new Error('Method not implemented.');
-    };
+  }
 
   // public stream?: (table: string, values: unknown[], options: StreamOptions) => Promise<StreamTableData>;
   // public unload?: (table: string, options: UnloadOptions) => Promise<DownloadTableCSVData>;
   // public isUnloadSupported?: (options: UnloadOptions) => Promise<boolean>;
 
-  public nowTimestamp(): number {
-    return Date.now();
+  public toGenericType(columnType: string): string {
+    columnType = columnType.toLowerCase();
+
+    if (columnType in ArangoToGenericType) {
+      return ArangoToGenericType[columnType];
+    }
+
+    return super.toGenericType(columnType);
   }
 
-  // TODO: add to interface too
-  public quoteIdentifier(identifier: string) {
-    return `"${identifier}"`;
-  }
-
-  private async aggrAttrs(collectionName: string) {
+  private async aggrAttrs(collectionName: string): Promise<Record<string, string>> {
     const cursor = await this.client.query(`
 FOR i IN [1]
   LET attrMaps = (
@@ -196,7 +170,7 @@ FOR i IN [1]
       RETURN ZIP(attributes[*].name, attributes[*].type)
   )
   RETURN MERGE(attrMaps)`);
-    let result: any = { id: 'string' };
+    let result: Record<string, string> = { id: 'string' };
 
     if (cursor.hasNext) {
       result = {
@@ -207,9 +181,5 @@ FOR i IN [1]
 
     await cursor.kill();
     return result;
-  }
-
-  private toGenericType(columnType) {
-    return DbTypeToGenericType[columnType.toLowerCase()] || columnType;
   }
 }
