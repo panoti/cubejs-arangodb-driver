@@ -1,5 +1,10 @@
 import { Expr, From, LimitStatement, OrderByStatement, parse, SelectedColumn } from 'pgsql-ast-parser';
 
+interface AqlContext {
+  docRef: string;
+  collectMap?: Record<string, String>;
+}
+
 const functionMap: Record<string, string> = {
   count: 'COUNT',
   countDistinct: 'COUNT_DISTINCT',
@@ -9,18 +14,13 @@ const functionMap: Record<string, string> = {
   avg: 'AVG'
 };
 
-const operatorMap = {
-    '=': '==',
-    'ILIKE': 'LIKE',
-    'NOT ILIKE': 'NOT LIKE'
+const operatorMap: Record<string, string> = {
+  '=': '==',
+  'ILIKE': 'LIKE',
+  'NOT ILIKE': 'NOT LIKE'
 };
 
 const indentMap: Record<number, string> = {};
-
-interface AqlContext {
-  docRef: string;
-  collectMap?: Record<string, String>;
-}
 
 export function indent(level: number, size = 2) {
   if (!indentMap[level]) {
@@ -28,6 +28,26 @@ export function indent(level: number, size = 2) {
   }
 
   return indentMap[level];
+}
+
+export function isNumeric(val: any): boolean {
+  // // See also: https://github.com/angular/angular/blob/c1052cf7a77e0bf2a4ec14f9dd5abc92034cfd2e/packages/common/src/pipes/number_pipe.ts#L289C7-L289C77
+  // typeof value === 'string' && !isNaN(Number(value) - parseFloat(value))
+  return !(val instanceof Array) && (val - parseFloat(val) + 1) >= 0;
+}
+
+export function capitalizeFirstLetter(string: string): string {
+  return string ? string[0].toUpperCase() + string.slice(1) : '';
+}
+
+export function hasCalculatedColumns(columns: SelectedColumn[]): boolean {
+  for (const col of columns) {
+    if (col.expr.type === 'call') {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 export function mapFromStatment(fromAst: From[], ctx: AqlContext) {
@@ -38,79 +58,80 @@ export function mapFromStatment(fromAst: From[], ctx: AqlContext) {
   return `FOR ${ctx.docRef} IN ${fromAst[0]['name']['name']}`;
 }
 
-function isNumeric(val: any): boolean {
-  return !(val instanceof Array) && (val - parseFloat(val) + 1) >= 0;
-}
-
-function capitalizeFirstLetter(string: string) {
-  return string ? string[0].toUpperCase() + string.slice(1) : "";
-}
-
-function mapOpStat(expr: Expr, ctx: AqlContext, params: any, deep = 0) {
+function mapOpStat(expr: Expr, params: unknown[], ctx: AqlContext, deep = 0) {
   switch (expr.type) {
-      case 'ref':
-          return `${ctx.docRef}.${expr.name}`
-      case 'parameter':
-          if (expr.name[0] == "$") {
-              // SQL positional parameter, e.g. {"type":"parameter","name":"$1"}
-              // Remove leading $, convert to numeric (+), adjust to zero-based index (-1).
-              const position = +expr.name.substring(1) - 1;
-              const value = params[position];
-              if ( isNumeric(value) ) return +value;
-              return value;
-          } else {
-              throw Error(`Unsupported parameter ${JSON.stringify(params)}`);
-          }
-      case 'boolean':
-      case 'integer':
-      case 'string':
-          return expr.value;
-      case 'unary':
-          // Extract operand value by recursive call to current function.
-          const operand = mapOpStat(expr.operand, ctx, params);
-          switch(expr.op) {
-              case 'IS NULL':
-                  return `${operand} == null`;
-              case 'IS NOT NULL':
-                  return `${operand} != null`;
-              default:
-                  throw Error(`Unsupported operator ${expr.op}!`);
-          }
-      case 'binary': {
-          // Extract operator value with substitution.
-          const mappedOperator = operatorMap[expr.op];
-          const op = mappedOperator ? mappedOperator : expr.op;
-          // Extract operands' values by recursive call to current function.
-          const lhs = mapOpStat(expr.left, ctx, params);
-          const rhs = mapOpStat(expr.right, ctx, params);
-          if (op == '||') {
-              // lhs or rhs is a wildcard literal ('%') to append for searching with LIKE.
-              return `${lhs}${rhs}`;
-          }
-          if (op == 'LIKE' || op == 'NOT LIKE') {
-              // Return quoted rhs.
-              return `${lhs} ${op} "${rhs}"`;
-          }
-          return deep > 0 ? `(${lhs} ${op} ${rhs})` : `${lhs} ${op} ${rhs}`;
+    case 'ref': {
+      return `${ctx.docRef}.${expr.name}`;
+    }
+
+    case 'parameter': {
+      if (expr.name[0] === '$') {
+        // SQL positional parameter, e.g. {"type":"parameter","name":"$1"}
+        // Remove leading $, convert to numeric (+), adjust to zero-based index (-1).
+        const position = +expr.name.substring(1) - 1;
+        const value: any = params[position];
+
+        if (isNumeric(value)) {
+          return +value;
+        } else if (typeof value === 'string') {
+          return `'${value}'`;
+        }
+
+        return value;
+      } else {
+        throw Error(`Unsupported parameter ${JSON.stringify(params)}`);
       }
-      default:
-          throw Error(`Unsupported where expr type ${expr.type}!`);
+    }
+
+    case 'boolean':
+    case 'integer':
+      return expr.value;
+
+    case 'string':
+      return `'${expr.value}'`;
+
+    case 'unary': {
+      // Extract operand value by recursive call to current function.
+      const operand = mapOpStat(expr.operand, params, ctx);
+
+      switch (expr.op) {
+        case 'IS NULL':
+          return `${operand} == null`;
+        case 'IS NOT NULL':
+          return `${operand} != null`;
+        default:
+          throw Error(`Unsupported operator ${expr.op}!`);
+      }
+    }
+
+    case 'binary': {
+      // Extract operator value with substitution.
+      const op = operatorMap[expr.op] || expr.op;
+      // Extract operands' values by recursive call to current function.
+      const lhs = mapOpStat(expr.left, params, ctx);
+      const rhs = mapOpStat(expr.right, params, ctx);
+
+      if (op === '||') {
+        // lhs or rhs is a wildcard literal ('%') to append for searching with LIKE.
+        return `CONCAT(${lhs}, ${rhs})`;
+      }
+
+      return deep > 0 ? `(${lhs} ${op} ${rhs})` : `${lhs} ${op} ${rhs}`;
+    }
+
+    default:
+      throw Error(`Unsupported where expr type ${expr.type}!`);
   }
 }
 
-export function mapWhereStatement(whereAst: Expr, ctx: AqlContext, params: any) {
-  let filterStr = mapOpStat(whereAst, ctx, params);
+export function mapWhereStatement(whereAst: Expr, params: unknown[], ctx: AqlContext): string {
+  let filterStr = mapOpStat(whereAst, params, ctx);
+
   if (filterStr) {
-      return `FILTER ${filterStr}`;
+    return `FILTER ${filterStr}`;
   }
-  throw Error(`Unsupported filter string ${JSON.stringify(whereAst)}`);
-}
 
-function hasCalculatedColumns(columns: SelectedColumn[]) {
-  for (const col of columns) {
-      if (col.expr.type == "call") return true;
-  }
-  return false;
+  throw Error(`Unsupported filter string ${JSON.stringify(whereAst)}`);
 }
 
 export function mapGroupByStatement(groupByAsts: Expr[], columns: SelectedColumn[], ctx: AqlContext) {
@@ -191,7 +212,7 @@ export function mapLimitStatement(limitAst: LimitStatement) {
       case 'integer':
         limitStr = `${limitAst.limit.value}`;
         break;
-    
+
       default:
         throw Error(`Unsupported limit type ${limitAst.limit.type}!`);
     }
@@ -227,17 +248,18 @@ export function mapProjectStatement(columns: SelectedColumn[], ctx: AqlContext) 
   return `RETURN {${returnArr.join(',')}}`;
 }
 
-export function sql2aql(sql: string, params: any): string {
+export function sql2aql(sql: string, params: unknown[] = []): string {
   const ast = parse(sql);
   let aqlQuery = '';
-
   let firstAst = ast[0];
+
   if (firstAst.type === 'select') {
     let ctx: AqlContext = { docRef: 'doc' };
+
     aqlQuery = `${mapFromStatment(firstAst.from, ctx)}\n`;
 
     if (firstAst.where) {
-      let filterStr = mapWhereStatement(firstAst.where, ctx, params);
+      let filterStr = mapWhereStatement(firstAst.where, params, ctx);
 
       if (filterStr) {
         aqlQuery += `${indent(1)}${filterStr}\n`;
