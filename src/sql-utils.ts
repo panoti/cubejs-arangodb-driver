@@ -35,7 +35,8 @@ export function mapFromStatment(fromAst: From[], ctx: AqlContext) {
     throw new Error(`Invalid from ast! ${fromAst.length} statement(s)`);
   }
 
-  return `FOR ${ctx.docRef} IN ${fromAst[0]['name']['name']}`;
+  const tableName = fromAst[0].type == 'table' ? fromAst[0].name.name : fromAst[0].statement.from[0].name.name;
+  return `FOR ${ctx.docRef} IN ${tableName}`;
 }
 
 function isNumeric(val: any): boolean {
